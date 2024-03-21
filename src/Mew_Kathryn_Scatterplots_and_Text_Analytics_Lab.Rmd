@@ -1,0 +1,301 @@
+---
+title: "Scatterplots and Text Analytics Lab"
+author: "Kathryn Mew"
+output:
+  html_document:
+    df_print: paged
+  pdf_document: default
+---
+
+```{r setup, include=FALSE}
+# This is the setup chunk
+#  Here you can set global options for the entire document
+
+library(knitr)
+library(ggplot2) # I recommend doing this
+library(ggrepel)
+library(dplyr)
+library(tidyr)
+
+# ----------------------------------------------------------------------------
+library(ggwordcloud)
+library(tm)
+library(SnowballC)
+library(wordcloud)
+library(tidytext)
+library(tibble)
+library(rmarkdown)
+library(imager)
+library(officer)
+library(stringr)
+library(ngram)
+library(textstem)
+library(tokenizers)
+library(stopwords)
+
+# Although you can call functions from a library using the following notation
+#  without loading the entire library.
+knitr::opts_chunk$set(echo = TRUE, 
+                      comment = NA, # Recommended
+                      fig.path = "./figures/",  # Store all figures here in relative path (make the folder first)
+                      fig.align = "center",
+                      fig.width = 7, # default figure width in inches
+                      fig.height = 7, # default figure height in inches
+                      message = FALSE, # Turn off load messages
+                      warning = FALSE # Turn off warnings
+                      )
+
+```
+
+
+```{r include=FALSE}
+# You should not echo this chunk.
+# include=FALSE does more than echo=FALSE, it actually does: echo=FALSE, results='hide', 
+#  message=FALSE, warning=FALSE, and fig.show='hide'
+
+# You should set your working directory at the very beginning of your R Markdown file
+
+# You should type things out properly for your system
+# Easiest Way - Session>Set Working Directory>To Source Files Location
+# THEN, Copy/paste from R Console here 
+
+```
+
+<!-- ---------------------------------------------------------------------------------------------------- -->
+<!-- ---------------- Lab starts below these lines ----------------------------------------- -->
+<!-- ---------------------------------------------------------------------------------------------------- -->
+
+# Problem 1 - Scatterplots
+
+Use the `murders` dataset which is found in the `dslabs` library package.
+
+Plot total number of gun murders vs. population however due to large population size change the population to per 100,000 people, i.e. (population/$10^5$).  Feel free to simply add another column to your data frame that does this unit change, although this is not necessary as there are other ways to do this, modifying the axis labels does the same thing.
+
+```{r}
+library(dslabs)
+murders_df <- murders
+murders_df$population <- murders_df$population / 10^5
+#Your Code Here             
+ggplot(murders_df, aes(x=population, y=total)) +
+  geom_point() +
+  labs(title = "Total Gun Murders vs. Population (per 100K)") +
+  xlab(label = "Population (per 100K)") +
+  ylab(label = "Total Gun Murders")
+```
+
+i. Change the shape and color based upon the region. Make sure the y-axis has ticks for every 50 units, while the x-axis has units for every 5 million.
+
+**Code Solution Notes:**
+Every 5 million units for `population` is (5*$10^6$)/$10^5$ = 50 units.
+```{r}
+#Your Code Here
+ggplot(murders_df, aes(x=population, y=total, color=region, shape=region)) +
+  geom_point() +
+  labs(title = "Total Gun Murders vs. Population (per 100k)") +
+  scale_x_continuous(name = "Population per 100k", breaks = seq(0, 500, by = 50)) +
+  scale_y_continuous(name = "Total Gun Murders", breaks = seq(0, 1500, by = 50))
+```
+
+ii. Add the abbreviated names of the states (`abb`) on (or next to) their respective points on the scatterplot. The easiest approach is using `geom_text()`.
+
+In general, there are many ways to do this with some methods being better than others.  Methods include `annotate()`, `geom_label()`, `geom_text()`, `geom_text_repel()` and `geom_label_repel()`. 
+https://ggplot2.tidyverse.org/reference/geom_text.html
+https://cran.r-project.org/web/packages/ggrepel/vignettes/ggrepel.html
+https://ggplot2.tidyverse.org/reference/annotate.html
+
+```{r}
+#Your Code Here
+ggplot(murders_df, aes(x=population, y=total, label=abb, color=region, shape=region)) +
+  geom_point() +
+  geom_text_repel(show.legend = FALSE) +
+  labs(title = "Total Gun Murders vs. Population (per 100k)") +
+  scale_x_continuous(name = "Population per 100k", 
+                     breaks = seq(0, 500, by = 50)) +
+  scale_y_continuous(name = "Total Gun Murders", 
+                     breaks = seq(0, 1500, by = 50))
+```
+
+iv. Add a red horizontal line for when the total number of murders is 600.  We'll consider this extremely high.  This can be done using `geom_hline()`.
+
+```{r}
+#Your Code Here
+ggplot(murders_df, aes(x=population, y=total, label=abb, 
+                       color=region, shape=region)) +
+  geom_point() +
+  geom_text_repel(show.legend = FALSE) +
+  geom_hline(aes(yintercept = 600), color="red") +
+  labs(title = "Total Gun Murders vs. Population (per 100k)",
+       subtitle = "Total Murders above 600 considered Extremely High") +
+  scale_x_continuous(name = "Population per 100k", 
+                     breaks = seq(0, 500, by = 50)) +
+  scale_y_continuous(name = "Total Gun Murders", 
+                     breaks = seq(0, 1500, by = 50))
+```
+
+v. Assign appropriate names to the title and axes.
+```{r}
+ggplot(murders_df, aes(x=population, y=total, label=abb, 
+                       color=region, shape=region)) +
+  geom_point() +
+  geom_text_repel(show.legend = FALSE) +
+  geom_hline(aes(yintercept = 600), color="red") +
+  labs(title = "Total Gun Murders vs. Population (per 100k)") +
+  scale_x_continuous(name = "Population per 100k", 
+                     breaks = seq(0, 500, by = 50)) +
+  scale_y_continuous(name = "Total Gun Murders", 
+                     breaks = seq(0, 1500, by = 50))
+```
+
+Which states have enough murders to be considered extremely high?
+Florida, Texas, and California are the three points above the 600 line, meaning they are extremely high.
+
+v. This graph is extremely cluttered. Using your reading of Knaflic, declutter and simplify this graph in at least one way.  
+
+**Code Solution Notes:**
+I saw that there was an example provided in the Knaflic document where an exact point/variable that they wanted to be observed (it was a AVG in a scatterplot) was the only point which had a label (using `geom_text()`) and all other points were greyed out. So, I thought that since we have the previous question *Which states have enough murders to be considered extremely high?*, I can declutter and simplify the graph by putting emphasis on any point that is above the "extremely high" line.
+```{r}
+#Your Code Here
+ggplot(murders_df, aes(x=population, y=total)) +
+  geom_point(color="grey") +
+  geom_point(data=subset(murders_df, total > 600), 
+             aes(color=region, shape=region)) +
+  geom_text_repel(data=subset(murders_df, total > 600), aes(label=abb),
+                  show.legend = FALSE) +
+  geom_hline(aes(yintercept = 600), color="red") +
+  labs(title = "Total Gun Murders vs. Population (per 100k)") +
+  scale_x_continuous(name = "Population per 100k", 
+                     breaks = seq(0, 500, by = 50)) +
+  scale_y_continuous(name = "Total Gun Murders", 
+                     breaks = seq(0, 1500, by = 50))
+```
+
+# Problem 1 - Text Analytics
+
+Use twitter_reviews.csv to answer the below questions.
+**Code Solution Notes:**
+Used `preprocess()` rather than multiple `gsub()` operations. Works the same.
+`filter(!str_detect(word, "[^\u0001-\u007F]+"))` removes any `word` that is non-English. This was primarily to lessen the amount of unnecessary observations/rows taking up space that was causing the runtime to be extreme (more than 5 minutes of waiting).
+```{r}
+reviews <- read.csv("twitter_reviews.csv")
+# Process review text, removing punctuation and converting to lower case
+reviews_text <- reviews$review_text %>%
+  lapply(function(x) preprocess(x, remove.punct = TRUE, remove.numbers = TRUE))
+
+# ----------------------------------------------------------------------------
+# Tokenize words in reviews_text, removing stopwords
+twitter_tokenized <- tokenize_words(reviews_text, 
+                                    stopwords = stopwords::stopwords("en"))
+twitter_token_string <- unlist(twitter_tokenized)
+
+# ----------------------------------------------------------------------------
+# TD-IDF 
+review_words_df <- stack(setNames(twitter_tokenized, 
+                                  seq_along(twitter_tokenized))) %>%
+  dplyr::rename(word = values, review_num = ind) %>%
+  filter(!str_detect(word, "[^\u0001-\u007F]+"))
+
+# Step 2: Create Term Frequency Table
+word_counts <- review_words_df %>%
+  dplyr::count(review_num, word, sort = TRUE)%>%
+  rename(count=n)
+
+# Step 3: Calculate Total Words per Review
+total_words <- review_words_df %>%
+  dplyr::group_by(review_num) %>%
+  dplyr::summarise(total_words = n())
+
+# Step 4: Combine the Data
+tf_by_twitter_review <- left_join(word_counts, total_words, by = "review_num")
+
+tfidf_twitter <- bind_tf_idf(as_tibble(tf_by_twitter_review), word, review_num, count) %>%
+  arrange(tf_idf)
+```
+
+Using text analytics, identify the most frequently used words in the review. Create a visualization of the top 5 with a bar charts.
+**Term Frequency**
+```{r}
+tf_reviews <- as.data.frame(table(twitter_token_string))
+tf_reviews <- data.frame("word" = tf_reviews$twitter_token_string, 
+                         "count" = tf_reviews$Freq) %>%
+  arrange(desc(count))
+```
+
+**Bar Chart: **
+```{r}
+tf_reviews %>%
+  slice(1:5) %>%
+  ggplot(aes(x=word, y=count, fill=word)) +
+    geom_bar(stat = "identity", show.legend = FALSE) +
+    theme_bw() +
+    labs(title = "Top 5 Used Words in Twitter Reviews") +
+    scale_y_continuous(name = "Count", breaks = seq(0, 2*10^5, by = 20*10^3))
+```
+
+Using text analytics, identify the most unique words in the review by the highest tf-idf. Create a visualization of the top 5 with a bar chart.
+**Code Solution Notes:**
+Used `distinct()` rather than messing around with `unique()`. Mainly because `unique()` was giving me trouble with anything I tried.
+```{r}
+# Uses tfidf_twitter
+tfidf_twitter %>%
+  distinct(word, .keep_all=TRUE) %>%
+  slice(1:5) %>%
+  ggplot(aes(x=word, y=tf_idf, fill=word)) +
+    geom_bar(stat = "identity", show.legend = FALSE) +
+    theme_bw() +
+    labs(title = "Top 5 Unique Words in Twitter Reviews by TD-IDF") +
+    scale_y_continuous(name = "TD-IDF", breaks = seq(0, 1, by = 0.0025))
+```
+
+Create 5 word clouds based on the highest tf_idf values – one for each of the 1 star, 2 star, 3 star, 4 star, and 5 star reviews.
+
+**Code Solution Notes:**
+I assumed that rather than finding the tf-idf values by `review_num`, the best way to solve this was to create a tf-idf based on `review_rating`, where the `idf` is dependent on the `review_rating`.
+This first coding segment is creating such a tf-idf.
+```{r}
+# TD-IDF 
+review_words_df <- stack(setNames(twitter_tokenized, 
+                                  seq_along(twitter_tokenized))) %>%
+  dplyr::rename(word = values, review_num = ind) %>%
+  filter(!str_detect(word, "[^\u0001-\u007F]+"))
+review_words_df$review_num <- as.numeric(as.character(review_words_df$review_num))
+
+stars_by_review <- reviews %>%
+  mutate(review_num = row_number()) %>%
+  select(review_num, review_rating)
+
+review_words_df <- left_join(review_words_df, stars_by_review, by = "review_num")
+
+# Step 2: Create Term Frequency Table
+word_counts <- review_words_df %>%
+  dplyr::count(review_rating, word, sort = TRUE)%>%
+  rename(count=n)
+
+# Step 3: Calculate Total Words per Review Rating
+total_words <- review_words_df %>%
+  dplyr::group_by(review_rating) %>%
+  dplyr::summarise(total_words = n())
+
+# Step 4: Combine the Data
+tf_by_rating <- left_join(word_counts, total_words, by = "review_rating")
+
+tfidf_ratings <- bind_tf_idf(as_tibble(tf_by_rating), word, 
+                             review_rating, count) %>%
+  arrange(tf_idf)
+```
+
+**Code Solution Notes:**
+Used `filter()` to remove entries where the tf-idf value is 0. 
+```{r}
+# Get Review Ratings based review_rating
+tfidf_ratings %>%
+  filter(tf_idf != 0) %>%
+  group_by(review_rating) %>%
+  top_n(10, tf_idf) %>%
+  arrange(review_rating) %>%
+  ggplot(aes(label = word, size = count, color = count)) +
+    geom_text_wordcloud_area() +
+    scale_color_gradient(low = "blue", high = "red") +
+    scale_size_area(max_size = 20) + 
+    labs(title = "TF_IDF Wordclouds: By Review Rating") +
+    facet_wrap(~ review_rating)
+```
